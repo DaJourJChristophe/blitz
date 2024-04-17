@@ -20,33 +20,32 @@ struct list
 {
   size_t size;
   size_t len;
-  char *items;
+  char items[4096];
+  char *keys[16];
 };
 
 typedef struct list list_t;
 
-static void list_append(list_t *self, const char *item, size_t len)
+/**
+ * @brief Append the address of a substring in the list buffer. This
+ *        is a memoization technique to make for faster traversals.
+ *
+ */
+static void __list_index(list_t *self, char *key)
 {
-  len += 1ul;
-
-  if (NULL == self->items)
+  if (self->size >= 16ul)
   {
-    self->items = (char *)malloc(len * sizeof(*self->items));
+    return;
   }
-  else
-  {
-    void *__old = NULL;
-    __old = self->items;
-    self->items = NULL;
-    self->items = (char *)realloc(__old, ((len + self->len) * sizeof(*self->items)));
-  }
+  self->keys[self->size++] = key;
+}
 
-  if (NULL == self->items)
-  {
-    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
-    exit(EXIT_FAILURE);
-  }
-
+/**
+ * @brief Append a substring to a list of substrings.
+ *
+ */
+static void __list_append(list_t *self, const char *item, size_t len)
+{
   // NOTE: Subtract one from the length as not to copy the
   //       terminating byte from the item.
   memcpy((self->items + self->len), item, (len - 1ul));
@@ -55,55 +54,63 @@ static void list_append(list_t *self, const char *item, size_t len)
   //       bytes terminator's are line-breaks.
   *(self->items + (len + self->len)) = '\0';
 
-  self->len += len;
-  self->size++;
+  __list_index(self, (self->items + self->len));
+
+  self->len += (1ul + len);
 }
 
+/**
+ * @brief Search the list items buffer for a substring.
+ *
+ */
 static char *list_get(list_t *self, const uint64_t i)
 {
-  uint64_t j;
-  uint64_t k;
-
-  for (j = 0ul, k = 0ul; j < i; j++)
-  {
-    while (self->items[k])
-    {
-      k++;
-    }
-    k++;
-  }
-
-  return (self->items + k);
+  return self->keys[i];
 }
 
-static void parse_lines(const char *data)
+/**
+ * @brief Parse substrings from a string using the parameterized delimiter.
+ *
+ */
+static void parse_lines(list_t *list, const char *data, const char delim)
 {
-  list_t list;
   uint64_t i;
 
-  i = 0ul;
-  memset(&list, 0, sizeof(list));
-
-  for (; *data; data++)
+  for (i = 0ul; *data; data++)
   {
-    if ('\n' == *data)
+    if (delim == *data)
     {
-      list_append(&list, (data - i), i);
+      if (0ul == i)
+      {
+        continue;
+      }
+
+      __list_append(list, (data - i), (1ul + i));
       i = 0ul;
       continue;
     }
+
     i++;
   }
 
-  for (i = 0ul; i < list.size; i++)
+  if (0ul == i)
   {
-    printf("%s\n", list_get(&list, i));
+    return;
   }
+
+  __list_append(list, (data - i), (1ul + i));
 }
 
 int main(void)
 {
   const char data[] = "<!DOCTYPE html>\n<html>\n  <head>\n    <body></body>\n  </head>\n</html>\n";
-  parse_lines(data);
+  list_t list;
+  uint64_t i;
+  memset(&list, 0, sizeof(list));
+  parse_lines(&list, data, '\n');
+  for (i = 0ul; i < list.size; i++)
+  {
+    printf("%s\n", list_get(&list, i));
+  }
   return EXIT_SUCCESS;
 }
