@@ -218,10 +218,25 @@ token_t *token_queue_dequeue(token_queue_t *self)
   return (self->toks + (self->r++ % self->cap));
 }
 
+token_t *token_queue_current(token_queue_t *self)
+{
+  return (self->toks + (self->w % self->cap));
+}
+
+bool token_queue_next(token_queue_t *self)
+{
+  if ((self->w - self->r) >= self->cap)
+  {
+    return false;
+  }
+  self->w++;
+  return true;
+}
+
 token_queue_t *lex(const char *line)
 {
   token_queue_t *que = NULL;
-  token_t tok;
+  token_t *tok = NULL;
   char buf[32];
   uint32_t i;
 
@@ -229,38 +244,40 @@ token_queue_t *lex(const char *line)
 
   for (; *line; line++)
   {
+    tok = token_queue_current(que);
+
     switch (*line)
     {
       case ' ':
-        tok.kind = KIND_SPACE;
+        tok->kind = KIND_SPACE;
         break;
 
       case '<':
-        tok.kind = KIND_LT_CARET;
+        tok->kind = KIND_LT_CARET;
         break;
 
       case '>':
-        tok.kind = KIND_RT_CARET;
+        tok->kind = KIND_RT_CARET;
         break;
 
       case '/':
-        tok.kind = KIND_FWD_SLASH;
+        tok->kind = KIND_FWD_SLASH;
         break;
 
       case '=':
-        tok.kind = KIND_EQUALS;
+        tok->kind = KIND_EQUALS;
         break;
 
       case '"':
-        tok.kind = KIND_DBL_QUOT;
+        tok->kind = KIND_DBL_QUOT;
         break;
 
       case '\'':
-        tok.kind = KIND_SNG_QUOT;
+        tok->kind = KIND_SNG_QUOT;
         break;
 
       case '!':
-        tok.kind = KIND_EXCL;
+        tok->kind = KIND_EXCL;
         break;
 
       default:
@@ -273,11 +290,11 @@ token_queue_t *lex(const char *line)
           buf[i++] = '\0';
           line--;
 
-          tok.data = calloc(i, sizeof(*buf));
-          tok.size = i;
-          tok.kind = KIND_WORD;
+          tok->data = calloc(i, sizeof(*buf));
+          tok->size = i;
+          tok->kind = KIND_WORD;
 
-          memcpy(tok.data, buf, i);
+          memcpy(tok->data, buf, i);
           break;
         }
 
@@ -285,7 +302,7 @@ token_queue_t *lex(const char *line)
         exit(EXIT_FAILURE);
     }
 
-    if (false == token_queue_enqueue(que, &tok))
+    if (false == token_queue_next(que))
     {
       fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue token into token queue");
       exit(EXIT_FAILURE);
