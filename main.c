@@ -61,37 +61,35 @@ static char *list_get(list_t *self, const uint64_t i)
   return self->keys[i];
 }
 
+
+
 /**
  * @brief Parse substrings from a string using the parameterized delimiter.
  *
  */
 static void parse_lines(list_t *list, char *data, const char delim)
 {
-  uint64_t i;
+  char *p = NULL;
+  p = data;
 
-  for (i = 0ul; *data; data++)
+  do
   {
-    if (delim == *data)
+    while (*p && *p != '\n')
     {
-      if (0ul == i)
-      {
-        continue;
-      }
-
-      __list_append(list, (data - i), i);
-      i = 0ul;
-      continue;
+      p++;
     }
 
-    i++;
-  }
+    if (p == data)
+    {
+      goto next;
+    }
 
-  if (0ul == i)
-  {
-    return;
-  }
+    __list_append(list, data, (p - data));
 
-  __list_append(list, (data - i), i);
+next:
+    data = ++p;
+
+  } while (*data);
 }
 
 int main(void)
