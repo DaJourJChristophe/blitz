@@ -11,6 +11,7 @@
  * Licensed under the Academic Free License version 3.0.
  */
 #include <ctype.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -159,11 +160,72 @@ void token_print(const token_t *self)
   }
 }
 
-void lex(const char *line)
+struct token_queue
 {
+  size_t cap;
+  uint64_t r;
+  uint64_t w;
+  token_t toks[];
+};
+
+typedef struct token_queue token_queue_t;
+
+void token_queue_setup(token_queue_t *self, const size_t size, const size_t cap)
+{
+  memset(self, 0, sizeof(*self));
+  self->cap = cap;
+}
+
+token_queue_t *token_queue_new(const size_t cap)
+{
+  const size_t size = offsetof(token_queue_t, toks[cap]);
+  token_queue_t *self = NULL;
+  self = (token_queue_t *)malloc(size);
+  if (self == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
+  }
+  token_queue_setup(self, size, cap);
+  return self;
+}
+
+void token_queue_destroy(token_queue_t *self)
+{
+  if (self != NULL)
+  {
+    free(self);
+    self = NULL;
+  }
+}
+
+bool token_queue_enqueue(token_queue_t *self, token_t *tok)
+{
+  if ((self->w - self->r) >= self->cap)
+  {
+    return false;
+  }
+  memcpy((self->toks + (self->w++ % self->cap)), tok, sizeof(*self->toks));
+  return true;
+}
+
+token_t *token_queue_dequeue(token_queue_t *self)
+{
+  if (self->r == self->w)
+  {
+    return NULL;
+  }
+  return (self->toks + (self->r++ % self->cap));
+}
+
+token_queue_t *lex(const char *line)
+{
+  token_queue_t *que = NULL;
   token_t tok;
   char buf[32];
   uint32_t i;
+
+  que = token_queue_new((1ul << 5));
 
   for (; *line; line++)
   {
@@ -223,12 +285,20 @@ void lex(const char *line)
         exit(EXIT_FAILURE);
     }
 
-    token_print(&tok);
+    if (false == token_queue_enqueue(que, &tok))
+    {
+      fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue token into token queue");
+      exit(EXIT_FAILURE);
+    }
   }
+
+  return que;
 }
 
 void parse(char *data)
 {
+  token_queue_t *que = NULL;
+  token_t *tok = NULL;
   list_t list;
   uint64_t i;
 
@@ -237,7 +307,14 @@ void parse(char *data)
 
   for (i = 0ul; i < list.size; i++)
   {
-    lex(list_get(&list, i));
+    que = lex(list_get(&list, i));
+
+    while (NULL != (tok = token_queue_dequeue(que)))
+    {
+      token_print(tok);
+    }
+
+    token_queue_destroy(que);
   }
 }
 
