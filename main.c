@@ -20,7 +20,6 @@ struct list
 {
   size_t size;
   size_t len;
-  char items[4096];
   char *keys[16];
 };
 
@@ -44,19 +43,13 @@ static void __list_index(list_t *self, char *key)
  * @brief Append a substring to a list of substrings.
  *
  */
-static void __list_append(list_t *self, const char *item, size_t len)
+static void __list_append(list_t *self, char *item, size_t len)
 {
-  // NOTE: Subtract one from the length as not to copy the
-  //       terminating byte from the item.
-  memcpy((self->items + self->len), item, (len - 1ul));
+  __list_index(self, item);
 
   // NOTE: We must add our own terminating byte as the buffered
   //       bytes terminator's are line-breaks.
-  *(self->items + (len + self->len)) = '\0';
-
-  __list_index(self, (self->items + self->len));
-
-  self->len += (1ul + len);
+  *(item + len) = '\0';
 }
 
 /**
@@ -72,7 +65,7 @@ static char *list_get(list_t *self, const uint64_t i)
  * @brief Parse substrings from a string using the parameterized delimiter.
  *
  */
-static void parse_lines(list_t *list, const char *data, const char delim)
+static void parse_lines(list_t *list, char *data, const char delim)
 {
   uint64_t i;
 
@@ -85,7 +78,7 @@ static void parse_lines(list_t *list, const char *data, const char delim)
         continue;
       }
 
-      __list_append(list, (data - i), (1ul + i));
+      __list_append(list, (data - i), i);
       i = 0ul;
       continue;
     }
@@ -98,19 +91,24 @@ static void parse_lines(list_t *list, const char *data, const char delim)
     return;
   }
 
-  __list_append(list, (data - i), (1ul + i));
+  __list_append(list, (data - i), i);
 }
 
 int main(void)
 {
-  const char data[] = "<!DOCTYPE html>\n<html>\n  <head>\n    <body></body>\n  </head>\n</html>\n";
+  char data[] = "<!DOCTYPE html>\n<html>\n  <head>\n    <body></body>\n  </head>\n</html>\n";
   list_t list;
+  char *line = NULL;
   uint64_t i;
+
   memset(&list, 0, sizeof(list));
   parse_lines(&list, data, '\n');
+
   for (i = 0ul; i < list.size; i++)
   {
-    printf("%s\n", list_get(&list, i));
+    line = list_get(&list, i);
+    printf("%s\n", line);
   }
+
   return EXIT_SUCCESS;
 }
