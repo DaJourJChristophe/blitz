@@ -1,6 +1,8 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-void parse(char *data);
+#include "tree.h"
+
+dom_tree_t *parse(char *data);
 
 #endif/*PARSE_H*/

@@ -12,6 +12,8 @@ gcc -I. -ggdb3 -o bin/main \
   parse/tag_open.c \
   lex.c \
   main.c \
+  node.c \
   parse.c \
   state.c \
-  token.c
+  token.c \
+  tree.c

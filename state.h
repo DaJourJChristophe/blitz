@@ -1,6 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 
+#include "node.h"
 #include "token.h"
 
 #include <stddef.h>
@@ -8,7 +9,7 @@
 
 struct state_queue;
 
-typedef void (*parse_state_t)(struct state_queue *, token_queue_t *);
+typedef void (*parse_state_t)(dom_tree_node_stack_t *, struct state_queue *, token_queue_t *);
 
 struct state_queue
 {

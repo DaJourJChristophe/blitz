@@ -10,18 +10,22 @@
  *
  * Licensed under the Academic Free License version 3.0.
  */
+#include "node.h"
 #include "state.h"
 #include "token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-void __parse_attribute_name(state_queue_t *states, token_queue_t *que);
+void __parse_attribute_name(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
 
-void __parse_attribute_value(state_queue_t *states, token_queue_t *que)
+void __parse_attribute_value(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que)
 {
+  dom_tree_node_t *node = NULL;
   token_t *curr = NULL;
   token_t *next = NULL;
+
+  node = dom_tree_node_stack_peek(stack);
 
   curr = token_queue_dequeue(que);
   if (curr == NULL)
@@ -35,7 +39,7 @@ void __parse_attribute_value(state_queue_t *states, token_queue_t *que)
     case KIND_WORD:
     case KIND_DASH:
     case KIND_DBL_QUOT:
-      token_print(curr);
+      // token_print(curr);
       break;
 
     default:
