@@ -103,6 +103,7 @@ enum
   KIND_SNG_QUOT,
   KIND_EXCL,
   KIND_WORD,
+  KIND_DASH,
 };
 
 struct token
@@ -152,6 +153,10 @@ void token_print(const token_t *self)
 
     case KIND_WORD:
       printf("%s", (char *)self->data);
+      break;
+
+    case KIND_DASH:
+      printf("%c", '-');
       break;
 
     default:
@@ -280,6 +285,10 @@ token_queue_t *lex(const char *line)
         tok->kind = KIND_EXCL;
         break;
 
+      case '-':
+        tok->kind = KIND_DASH;
+        break;
+
       default:
         if (isalpha(*line))
         {
@@ -312,10 +321,236 @@ token_queue_t *lex(const char *line)
   return que;
 }
 
+typedef void *(*parse_state_t)(token_t *tok);
+
+static void *__parse_tag_open(token_t *tok);
+
+static void *__parse_tag_close(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_RT_CARET:
+      token_print(tok);
+      return &__parse_tag_open;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_attribute_close(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_EQUALS:
+      token_print(tok);
+      return &__parse_tag_open;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_attribute_name(token_t *tok);
+
+static void *__parse_attribute_space(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_SPACE:
+      token_print(tok);
+      return &__parse_attribute_name;
+
+    case KIND_WORD:
+      token_print(tok);
+      return __parse_attribute_name(tok);
+
+    case KIND_RT_CARET:
+      return __parse_tag_close(tok);
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_attribute_value(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_WORD:
+      token_print(tok);
+      return &__parse_attribute_value;
+
+    case KIND_DASH:
+      token_print(tok);
+      return &__parse_attribute_value;
+
+    case KIND_DBL_QUOT:
+      token_print(tok);
+      return &__parse_attribute_space;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_attribute_open(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_DBL_QUOT:
+      token_print(tok);
+      return &__parse_attribute_value;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_attribute_seperator(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_EQUALS:
+      token_print(tok);
+      return &__parse_attribute_open;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_attribute_name(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_WORD:
+      token_print(tok);
+      return &__parse_attribute_seperator;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_space(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_SPACE:
+      token_print(tok);
+      return &__parse_attribute_name;
+
+    case KIND_RT_CARET:
+      token_print(tok);
+      return &__parse_tag_open;
+
+    default:
+      break;
+  }
+
+  return &__parse_tag_close;
+}
+
+static void *__parse_doctype(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_WORD:
+      token_print(tok);
+      return &__parse_doctype;
+
+    case KIND_SPACE:
+      token_print(tok);
+      return &__parse_doctype;
+
+    case KIND_RT_CARET:
+      token_print(tok);
+      return &__parse_tag_open;
+
+    default:
+      break;
+  }
+}
+
+static void *__parse_tag_name(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_WORD:
+      token_print(tok);
+      return &__parse_space;
+
+    case KIND_FWD_SLASH:
+      token_print(tok);
+      return &__parse_tag_name;
+
+    case KIND_EXCL:
+      token_print(tok);
+      return &__parse_doctype;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void *__parse_tag_open(token_t *tok)
+{
+  switch (tok->kind)
+  {
+    case KIND_LT_CARET:
+      token_print(tok);
+      return &__parse_tag_name;
+
+    case KIND_SPACE:
+      token_print(tok);
+      return &__parse_tag_open;
+
+    default:
+      break;
+  }
+
+  return NULL;
+}
+
+static void __parse(token_queue_t *que)
+{
+  parse_state_t state = NULL;
+  token_t *tok = NULL;
+
+  state = &__parse_tag_open;
+
+  while (NULL != (tok = token_queue_dequeue(que)))
+  {
+    if (state == NULL)
+    {
+      fprintf(stderr, "%s(): %s\n", __func__, "null pointer exception");
+      exit(EXIT_FAILURE);
+    }
+
+    state = state(tok);
+  }
+}
+
 void parse(char *data)
 {
   token_queue_t *que = NULL;
-  token_t *tok = NULL;
   list_t list;
   uint64_t i;
 
@@ -326,10 +561,7 @@ void parse(char *data)
   {
     que = lex(list_get(&list, i));
 
-    while (NULL != (tok = token_queue_dequeue(que)))
-    {
-      token_print(tok);
-    }
+    __parse(que);
 
     token_queue_destroy(que);
   }
@@ -337,7 +569,7 @@ void parse(char *data)
 
 int main(void)
 {
-  char data[] = "<!DOCTYPE html>\n<html>\n  <head>\n    <body></body>\n  </head>\n</html>\n";
+  char data[] = "<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en-US\">\n  <head>\n    <body></body>\n  </head>\n</html>\n";
   parse(data);
   return EXIT_SUCCESS;
 }
