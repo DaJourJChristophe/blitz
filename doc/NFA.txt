@@ -1,0 +1,30 @@
+The HyperText Markup Language (HTML) parser is
+designed to organize and combine syntax tokens
+from lexical analysis into a Document Object Model
+(DOM) Tree. The HyperText Markup Language (HTML)
+parser has six parser states. Refer to the list
+below:
+
+  1. OpenTag
+  2. TagName
+  3. TagClose
+  4. AttrName
+  5. AttrValue
+  6. ElmClose
+
+Each of the parser states listed above will be
+explained in more detail below.
+
+Each parser state has two functions. The first is
+to determine if the state is valid and the second
+being to determine where to go next in the state
+diagram.
+
+OpenTag — Checks for a left caret symbol and then
+          schedules the TagName state. If the state
+          detects a forward slash it will schedule
+          the ElmClose state.
+
+TagName — Checks if the token kind is a word and
+          then schedules the TagClose and the
+          AttrName states.
