@@ -107,6 +107,15 @@ bool token_queue_enqueue(token_queue_t *self, token_t *tok)
   return true;
 }
 
+token_t *token_queue_peek(token_queue_t *self)
+{
+  if (self->r == self->w)
+  {
+    return NULL;
+  }
+  return (self->toks + (self->r % self->cap));
+}
+
 token_t *token_queue_dequeue(token_queue_t *self)
 {
   if (self->r == self->w)

@@ -46,6 +46,8 @@ void token_queue_destroy(token_queue_t *self);
 
 bool token_queue_enqueue(token_queue_t *self, token_t *tok);
 
+token_t *token_queue_peek(token_queue_t *self);
+
 token_t *token_queue_dequeue(token_queue_t *self);
 
 token_t *token_queue_current(token_queue_t *self);

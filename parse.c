@@ -62,231 +62,527 @@ void parse(char *data)
   }
 }
 
-typedef void *(*parse_state_t)(token_t *tok);
+struct state_queue;
 
-static void *__parse_tag_open(token_t *tok);
+typedef void (*parse_state_t)(struct state_queue *, token_queue_t *);
 
-static void *__parse_tag_close(token_t *tok)
+struct state_queue
 {
-  switch (tok->kind)
-  {
-    case KIND_RT_CARET:
-      token_print(tok);
-      return &__parse_tag_open;
+  size_t cap;
+  uint64_t r;
+  uint64_t w;
+  parse_state_t states[];
+};
 
-    default:
-      break;
-  }
+typedef struct state_queue state_queue_t;
 
-  return NULL;
+static void state_queue_setup(state_queue_t *self, const size_t size, const size_t cap)
+{
+  memset(self, 0, sizeof(*self));
+  self->cap = cap;
 }
 
-static void *__parse_attribute_close(token_t *tok)
+static state_queue_t *state_queue_new(const size_t cap)
 {
-  switch (tok->kind)
+  const size_t size = offsetof(state_queue_t, states[cap]);
+  state_queue_t *self = NULL;
+  self = (state_queue_t *)malloc(size);
+  if (self == NULL)
   {
-    case KIND_EQUALS:
-      token_print(tok);
-      return &__parse_tag_open;
-
-    default:
-      break;
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
   }
-
-  return NULL;
+  state_queue_setup(self, size, cap);
+  return self;
 }
 
-static void *__parse_attribute_name(token_t *tok);
-
-static void *__parse_attribute_space(token_t *tok)
+static void state_queue_destroy(state_queue_t *self)
 {
-  switch (tok->kind)
+  if (self != NULL)
   {
-    case KIND_SPACE:
-      token_print(tok);
-      return &__parse_attribute_name;
-
-    case KIND_WORD:
-      token_print(tok);
-      return __parse_attribute_name(tok);
-
-    case KIND_RT_CARET:
-      return __parse_tag_close(tok);
-
-    default:
-      break;
-  }
-
-  return NULL;
-}
-
-static void *__parse_attribute_value(token_t *tok)
-{
-  switch (tok->kind)
-  {
-    case KIND_WORD:
-      token_print(tok);
-      return &__parse_attribute_value;
-
-    case KIND_DASH:
-      token_print(tok);
-      return &__parse_attribute_value;
-
-    case KIND_DBL_QUOT:
-      token_print(tok);
-      return &__parse_attribute_space;
-
-    default:
-      break;
-  }
-
-  return NULL;
-}
-
-static void *__parse_attribute_open(token_t *tok)
-{
-  switch (tok->kind)
-  {
-    case KIND_DBL_QUOT:
-      token_print(tok);
-      return &__parse_attribute_value;
-
-    default:
-      break;
-  }
-
-  return NULL;
-}
-
-static void *__parse_attribute_seperator(token_t *tok)
-{
-  switch (tok->kind)
-  {
-    case KIND_EQUALS:
-      token_print(tok);
-      return &__parse_attribute_open;
-
-    default:
-      break;
-  }
-
-  return NULL;
-}
-
-static void *__parse_attribute_name(token_t *tok)
-{
-  switch (tok->kind)
-  {
-    case KIND_WORD:
-      token_print(tok);
-      return &__parse_attribute_seperator;
-
-    default:
-      break;
-  }
-
-  return NULL;
-}
-
-static void *__parse_space(token_t *tok)
-{
-  switch (tok->kind)
-  {
-    case KIND_SPACE:
-      token_print(tok);
-      return &__parse_attribute_name;
-
-    case KIND_RT_CARET:
-      token_print(tok);
-      return &__parse_tag_open;
-
-    default:
-      break;
-  }
-
-  return &__parse_tag_close;
-}
-
-static void *__parse_doctype(token_t *tok)
-{
-  switch (tok->kind)
-  {
-    case KIND_WORD:
-      token_print(tok);
-      return &__parse_doctype;
-
-    case KIND_SPACE:
-      token_print(tok);
-      return &__parse_doctype;
-
-    case KIND_RT_CARET:
-      token_print(tok);
-      return &__parse_tag_open;
-
-    default:
-      break;
+    free(self);
+    self = NULL;
   }
 }
 
-static void *__parse_tag_name(token_t *tok)
+static bool state_queue_enqueue(state_queue_t *self, parse_state_t state)
 {
-  switch (tok->kind)
+  if ((self->w - self->r) >= self->cap)
   {
-    case KIND_WORD:
-      token_print(tok);
-      return &__parse_space;
+    return false;
+  }
+  self->states[self->w++ % self->cap] = state;
+  return true;
+}
 
+static parse_state_t state_queue_dequeue(state_queue_t *self)
+{
+  if (self->r == self->w)
+  {
+    return NULL;
+  }
+  return self->states[self->r++ % self->cap];
+}
+
+static void __parse_elm_close(state_queue_t *states, token_queue_t *que);
+static void __parse_attribute_value(state_queue_t *states, token_queue_t *que);
+static void __parse_attribute_name(state_queue_t *states, token_queue_t *que);
+static void __parse_doctype(state_queue_t *states, token_queue_t *que);
+static void __parse_tag_close(state_queue_t *states, token_queue_t *que);
+static void __parse_tag_name(state_queue_t *states, token_queue_t *que);
+static void __parse_tag_open(state_queue_t *states, token_queue_t *que);
+
+static void __parse_elm_close(state_queue_t *states, token_queue_t *que)
+{
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (curr->kind)
+  {
     case KIND_FWD_SLASH:
-      token_print(tok);
-      return &__parse_tag_name;
-
-    case KIND_EXCL:
-      token_print(tok);
-      return &__parse_doctype;
+      token_print(curr);
+      break;
 
     default:
-      break;
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", curr->kind);
+      exit(EXIT_FAILURE);
   }
 
-  return NULL;
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_WORD:
+      if (false == state_queue_enqueue(states, &__parse_tag_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      exit(EXIT_FAILURE);
+  }
 }
 
-static void *__parse_tag_open(token_t *tok)
+static void __parse_attribute_value(state_queue_t *states, token_queue_t *que)
 {
-  switch (tok->kind)
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (curr->kind)
+  {
+    case KIND_WORD:
+    case KIND_DASH:
+    case KIND_DBL_QUOT:
+      token_print(curr);
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", curr->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_WORD:
+    case KIND_DASH:
+      if (false == state_queue_enqueue(states, &__parse_attribute_value))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_DBL_QUOT:
+      if (false == state_queue_enqueue(states, &__parse_attribute_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      exit(EXIT_FAILURE);
+  }
+}
+
+static void __parse_attribute_name(state_queue_t *states, token_queue_t *que)
+{
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (curr->kind)
+  {
+    case KIND_WORD:
+    case KIND_SPACE:
+    case KIND_EQUALS:
+    case KIND_DBL_QUOT:
+      token_print(curr);
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: invalid current token", curr->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_WORD:
+      if (false == state_queue_enqueue(states, &__parse_attribute_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_EQUALS:
+      if (false == state_queue_enqueue(states, &__parse_attribute_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_DBL_QUOT:
+      if (false == state_queue_enqueue(states, &__parse_attribute_value))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_RT_CARET:
+      if (false == state_queue_enqueue(states, &__parse_tag_close))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_SPACE:
+      if (false == state_queue_enqueue(states, &__parse_attribute_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: invalid next token", next->kind);
+      exit(EXIT_FAILURE);
+  }
+}
+
+static void __parse_doctype(state_queue_t *states, token_queue_t *que)
+{
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (curr->kind)
+  {
+    case KIND_WORD:
+    case KIND_SPACE:
+    case KIND_EXCL:
+      token_print(curr);
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", curr->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_WORD:
+    case KIND_SPACE:
+      if (false == state_queue_enqueue(states, &__parse_doctype))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_RT_CARET:
+      if (false == state_queue_enqueue(states, &__parse_tag_close))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      exit(EXIT_FAILURE);
+  }
+}
+
+static void __parse_tag_close(state_queue_t *states, token_queue_t *que)
+{
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (curr->kind)
+  {
+    case KIND_RT_CARET:
+      token_print(curr);
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", curr->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    return;
+  }
+
+  switch (next->kind)
   {
     case KIND_LT_CARET:
-      token_print(tok);
-      return &__parse_tag_name;
-
-    case KIND_SPACE:
-      token_print(tok);
-      return &__parse_tag_open;
+      if (false == state_queue_enqueue(states, &__parse_tag_open))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
 
     default:
-      break;
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      exit(EXIT_FAILURE);
+  }
+}
+
+static void __parse_tag_name(state_queue_t *states, token_queue_t *que)
+{
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
   }
 
-  return NULL;
+  switch (curr->kind)
+  {
+    case KIND_WORD:
+      token_print(curr);
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: current token", curr->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_SPACE:
+      if (false == state_queue_enqueue(states, &__parse_attribute_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_RT_CARET:
+      if (false == state_queue_enqueue(states, &__parse_tag_close))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_EXCL:
+      if (false == state_queue_enqueue(states, &__parse_doctype))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: next token", next->kind);
+      exit(EXIT_FAILURE);
+  }
+}
+
+static void __parse_tag_open(state_queue_t *states, token_queue_t *que)
+{
+  token_t *curr = NULL;
+  token_t *next = NULL;
+
+  curr = token_queue_dequeue(que);
+  if (curr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid current token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (curr->kind)
+  {
+    case KIND_LT_CARET:
+      token_print(curr);
+      break;
+
+    case KIND_SPACE:
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: current token", curr->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_LT_CARET:
+    case KIND_SPACE:
+      if (false == state_queue_enqueue(states, &__parse_tag_open))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_WORD:
+      if (false == state_queue_enqueue(states, &__parse_tag_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_FWD_SLASH:
+      if (false == state_queue_enqueue(states, &__parse_elm_close))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_EXCL:
+      if (false == state_queue_enqueue(states, &__parse_doctype))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: next token", next->kind);
+      exit(EXIT_FAILURE);
+  }
 }
 
 static void __parse(token_queue_t *que)
 {
+  state_queue_t *states = NULL;
   parse_state_t state = NULL;
   token_t *tok = NULL;
 
-  state = &__parse_tag_open;
+  states = state_queue_new((1ul << 5));
 
-  while (NULL != (tok = token_queue_dequeue(que)))
+  if (false == state_queue_enqueue(states, &__parse_tag_open))
   {
-    if (state == NULL)
-    {
-      fprintf(stderr, "%s(): %s\n", __func__, "null pointer exception");
-      exit(EXIT_FAILURE);
-    }
-
-    state = state(tok);
+    fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+    exit(EXIT_FAILURE);
   }
+
+  // NOTE: This inner loop is to limit the call stack
+  //       depth when scheduling numerous states at once.
+  while  (NULL != token_queue_peek(que) &&
+          NULL != (state = state_queue_dequeue(states)))
+  {
+      state(states, que);
+  }
+
+  if (NULL != token_queue_peek(que))
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "incomplete");
+    exit(EXIT_FAILURE);
+  }
+
+  state_queue_destroy(states);
 }
 
 /**

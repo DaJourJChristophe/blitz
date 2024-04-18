@@ -2,4 +2,4 @@
 
 set -e
 
-gcc -o bin/main lex.c main.c parse.c token.c
+gcc -ggdb3 -o bin/main lex.c main.c parse.c token.c
