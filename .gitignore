@@ -4,3 +4,6 @@
 *.so
 
 .vscode/
+
+bin/*
+!bin/.keep

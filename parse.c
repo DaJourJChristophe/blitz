@@ -10,6 +10,7 @@
  *
  * Licensed under the Academic Free License version 3.0.
  */
+#include "lex.h"
 #include "parse.h"
 #include "token.h"
 
