@@ -1,0 +1,7 @@
+*.a
+*.o
+*.out
+*.so
+
+.vscode/
+.vscode.tmp/
