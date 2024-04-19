@@ -535,6 +535,8 @@ bool dom_tree_node_append(dom_tree_node_t *self, dom_tree_node_t *node)
     return false;
   }
 
+  node->parent = self;
+
   if (self->children == NULL)
   {
     self->children = (dom_tree_node_t **)calloc(1ul, sizeof(*self->children));
@@ -1906,13 +1908,11 @@ struct graph_node
 
 typedef struct graph_node graph_node_t;
 
-static graph_node_t *graph_node_new(const char *name, const int vertex, const int weight)
+static graph_node_t *graph_node_new(const char *name)
 {
   graph_node_t *self = NULL;
   self = (graph_node_t *)calloc(1ul, sizeof(*self));
   strcpy(self->name, name);
-  self->weight = weight;
-  self->vertex = vertex;
   return self;
 }
 
@@ -1925,11 +1925,70 @@ static void graph_node_destroy(graph_node_t *self)
   }
 }
 
+struct graph_node_queue
+{
+  size_t cap;
+  uint64_t r;
+  uint64_t w;
+  graph_node_t *nodes[];
+};
+
+typedef struct graph_node_queue graph_node_queue_t;
+
+static void graph_node_queue_setup(graph_node_queue_t *self, const size_t size, const size_t cap)
+{
+  memset(self, 0, size);
+  self->cap = cap;
+}
+
+graph_node_queue_t *graph_node_queue_new(const size_t cap)
+{
+  const size_t size = offsetof(graph_node_queue_t, nodes[cap]);
+  graph_node_queue_t *self = NULL;
+  self = (graph_node_queue_t *)malloc(size);
+  if (self == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
+  }
+  graph_node_queue_setup(self, size, cap);
+  return self;
+}
+
+void graph_node_queue_destroy(graph_node_queue_t *self)
+{
+  if (self == NULL)
+  {
+    free(self);
+    self = NULL;
+  }
+}
+
+bool graph_node_queue_enqueue(graph_node_queue_t *self, graph_node_t *node)
+{
+  if ((self->w - self->r) >= self->cap)
+  {
+    return false;
+  }
+  self->nodes[self->w++ % self->cap] = node;
+  return true;
+}
+
+graph_node_t *graph_node_queue_dequeue(graph_node_queue_t *self)
+{
+  if (self->r == self->w)
+  {
+    return NULL;
+  }
+  return self->nodes[self->r++ % self->cap];
+}
+
 struct graph
 {
   size_t cap;
   uint64_t count;
   int visited[1u << 5];
+  graph_node_t *vertices[1u << 5];
   graph_node_t *adj_list[];
 };
 
@@ -1963,18 +2022,26 @@ void graph_destroy(graph_t *self)
   }
 }
 
-void graph_add_edge(graph_t *self, graph_node_t *dst, graph_node_t *src)
+static void graph_add_node(graph_t *self, graph_node_t *node)
 {
-  dst->next = self->adj_list[src->vertex];
-  self->adj_list[src->vertex] = dst;
+  node->vertex = self->count++;
+  self->vertices[node->vertex] = node;
+}
 
+void graph_add_directed_edge(graph_t *self, graph_node_t *dst, graph_node_t *src, const int weight)
+{
+  // dst->next = self->adj_list[src->vertex];
+  // self->adj_list[src->vertex] = dst;
+  src->weight = weight;
   src->next = self->adj_list[dst->vertex];
   self->adj_list[dst->vertex] = src;
 }
 
-graph_node_t *graph_node_create(graph_t *self, const int weight, const char *name)
+graph_node_t *graph_node_create(graph_t *self, const char *name)
 {
-  return graph_node_new(name, self->count++, weight);
+  graph_node_t *node = graph_node_new(name);
+  graph_add_node(self, node);
+  return node;
 }
 
 void graph_BFS(graph_t *self, const int start)
@@ -1994,9 +2061,9 @@ void graph_BFS(graph_t *self, const int start)
 
   while (NULL != (item = queue_dequeue(&que)))
   {
-    node = self->adj_list[*item];
+    printf("(%d)%s ", self->vertices[*item]->weight, self->vertices[*item]->name);
 
-    printf("(%d)%s ", *item, node->name);
+    node = self->adj_list[*item];
 
     while (node != NULL)
     {
@@ -2021,18 +2088,18 @@ void graph_BFS(graph_t *self, const int start)
 void dom_tree_BFS(const dom_tree_t *self)
 {
   graph_t *graph = NULL;
+  graph_node_queue_t *graph_que = NULL;
   graph_node_t *dst = NULL;
   graph_node_t *src = NULL;
   dom_tree_node_queue_t *que = NULL;
   dom_tree_node_t *node = NULL;
   uint64_t i;
   uint64_t depth;
-  uint64_t count;
 
-  count = self->root->count;
   depth = 0ul;
-
   graph = graph_new(1ul << 5);
+
+  graph_que = graph_node_queue_new((1ul << 5));
   que = dom_tree_node_queue_new((1ul << 5));
 
   if (false == dom_tree_node_queue_enqueue(que, self->root))
@@ -2041,35 +2108,37 @@ void dom_tree_BFS(const dom_tree_t *self)
     exit(EXIT_FAILURE);
   }
 
+  src = graph_node_create(graph, self->root->name);
+  if (false == graph_node_queue_enqueue(graph_que, src))
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
+    exit(EXIT_FAILURE);
+  }
+
+  dom_tree_node_t *parent = NULL;
+
   while (NULL != (node = dom_tree_node_queue_dequeue(que)))
   {
-    src = graph_node_create(graph, depth, node->name);
+    dst = graph_node_queue_dequeue(graph_que);
 
-    if (dst == NULL)
+    for (i = node->count; i > 0ul; i--)
     {
-      dst = src;
-    }
-    else
-    {
-      graph_add_edge(graph, dst, src);
-    }
-
-    if (0ul == count)
-    {
-      count = node->count;
-      dst = src;
-      depth++;
-    }
-    count--;
-
-    for (i = 0ul; i < node->count; i++)
-    {
-      if (NULL == node->children[i])
+      if (NULL == node->children[i - 1ul])
       {
         continue;
       }
 
-      if (false == dom_tree_node_queue_enqueue(que, node->children[i]))
+      if (false == dom_tree_node_queue_enqueue(que, node->children[i - 1ul]))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
+        exit(EXIT_FAILURE);
+      }
+
+      src = graph_node_create(graph, node->children[i - 1ul]->name);
+
+      graph_add_directed_edge(graph, dst, src, depth);
+
+      if (false == graph_node_queue_enqueue(graph_que, src))
       {
         fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
         exit(EXIT_FAILURE);
@@ -2080,6 +2149,7 @@ void dom_tree_BFS(const dom_tree_t *self)
   graph_BFS(graph, 0);
 
   dom_tree_node_queue_destroy(que);
+  graph_node_queue_destroy(graph_que);
   graph_destroy(graph);
 }
 
@@ -2097,12 +2167,19 @@ void dom_tree_BFS(const dom_tree_t *self)
  */
 // #include "parse.h"
 // #include "tree.h"
+#include "io.h"
 
 #include <stdlib.h>
 
 int main(void)
 {
-  char data[] = "<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en-US\">\n  <head></head>\n  <body></body>\n</html>\n";
+  char data[4096];
+  memset(data, 0, 4096 * sizeof(*data));
+  if (readfile(data, "index.html") < 0)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "could not read from file");
+    exit(EXIT_FAILURE);
+  }
   dom_tree_t *tree = NULL;
   tree = parse(data);
   dom_tree_BFS(tree);
