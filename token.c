@@ -54,6 +54,22 @@ void token_print(const token_t *self)
       printf("%c", '!');
       break;
 
+    case KIND_PERIOD:
+      printf("%c", '.');
+      break;
+
+    case KIND_COMMA:
+      printf("%c", ',');
+      break;
+
+    case KIND_COLON:
+      printf("%c", ':');
+      break;
+
+    case KIND_SEMI_COLON:
+      printf("%c", ';');
+      break;
+
     case KIND_WORD:
       printf("%s", (char *)self->data);
       break;
@@ -63,7 +79,7 @@ void token_print(const token_t *self)
       break;
 
     default:
-      fprintf(stderr, "%s(): %s\n", __func__, "unknown token.kind");
+      fprintf(stderr, "%s(): %s(%d)\n", __func__, "unknown token.kind", self->kind);
       exit(EXIT_FAILURE);
   }
 }

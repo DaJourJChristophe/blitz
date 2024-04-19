@@ -17,6 +17,10 @@ enum
   KIND_EXCL,
   KIND_WORD,
   KIND_DASH,
+  KIND_PERIOD,
+  KIND_COMMA,
+  KIND_COLON,
+  KIND_SEMI_COLON,
 };
 
 struct token
