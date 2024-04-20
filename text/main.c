@@ -10,6 +10,7 @@
  *
  * Licensed under the Academic Free License version 3.0.
  */
+#include "tree.h"
 #include "io.h"
 #include "token.h"
 
@@ -98,9 +99,13 @@ token_queue_t *lex(const char *data)
   return que;
 }
 
-void parse2(token_queue_t *que)
+content_tree_node_t *parse2(token_queue_t *que)
 {
+  content_tree_node_t *parent = NULL;
+  content_tree_node_t *node = NULL;
   token_t *tok = NULL;
+
+  parent = content_tree_node_new(NULL, 0ul, CONTENT_TREE_NODE_CAPACITY);
 
   while (NULL != (tok = token_queue_dequeue(que)))
   {
@@ -110,7 +115,12 @@ void parse2(token_queue_t *que)
         break;
 
       case KIND_WORD:
-        token_print(tok); printf("\n");
+        node = content_tree_node_new(tok->data, tok->size, CONTENT_TREE_NODE_CAPACITY);
+        if (false == content_tree_node_append(parent, node))
+        {
+          fprintf(stderr, "%s(): %s\n", __func__, "could not append child node to parent node");
+          exit(EXIT_FAILURE);
+        }
         break;
 
       case KIND_PERIOD:
@@ -127,15 +137,19 @@ void parse2(token_queue_t *que)
     }
   }
 
-  printf("\n\n");
+  return parent;
 }
 
-void parse(token_queue_t *que)
+content_tree_t *parse(token_queue_t *que)
 {
+  content_tree_t *tree = NULL;
+  content_tree_node_t *node = NULL;
   token_queue_t *new_que = NULL;
   token_t *tok = NULL;
 
+  tree = content_tree_new();
   new_que = token_queue_new((1ul << 12));
+  tree->root = content_tree_node_new(NULL, 0ul, CONTENT_TREE_NODE_CAPACITY);
 
   while (NULL != (tok = token_queue_dequeue(que)))
   {
@@ -143,7 +157,11 @@ void parse(token_queue_t *que)
     {
       case KIND_SPACE:
       case KIND_WORD:
-        token_queue_enqueue(new_que, tok);
+        if (false == token_queue_enqueue(new_que, tok))
+        {
+          fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into token queue");
+          exit(EXIT_FAILURE);
+        }
         break;
 
       case KIND_PERIOD:
@@ -151,7 +169,12 @@ void parse(token_queue_t *que)
       case KIND_COMMA:
       case KIND_COLON:
       case KIND_SEMI_COLON:
-        parse2(new_que);
+        node = parse2(new_que);
+        if (false == content_tree_node_append(tree->root, node))
+        {
+          fprintf(stderr, "%s(): %s\n", __func__, "could not append child node to parent node");
+          exit(EXIT_FAILURE);
+        }
         new_que = token_queue_new((1ul << 12));
         break;
 
@@ -162,11 +185,13 @@ void parse(token_queue_t *que)
   }
 
   token_queue_destroy(que);
+  return tree;
 }
 
 int main(void)
 {
   char data[(1u << 16)];
+  content_tree_t *tree = NULL;
   token_queue_t *que = NULL;
   memset(data, 0, (1u << 16) * sizeof(*data));
   if (readfile(data, "data.txt") < 0)
@@ -175,6 +200,8 @@ int main(void)
     exit(EXIT_FAILURE);
   }
   que = lex(data);
-  parse(que);
+  tree = parse(que);
+  content_tree_print(tree);
+  content_tree_destroy(tree);
   return EXIT_SUCCESS;
 }
