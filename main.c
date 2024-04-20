@@ -30,7 +30,7 @@ int main(void)
   }
   dom_tree_t *tree = NULL;
   tree = parse(data);
-  dom_tree_BFS(tree);
+  dom_tree_print(tree);
   dom_tree_destroy(tree);
   return EXIT_SUCCESS;
 }

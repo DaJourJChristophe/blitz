@@ -23,10 +23,16 @@ void __parse_tag_open(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_n
 
 void __parse_elm_body(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
 {
-  dom_tree_node_t *parent = NULL;
   dom_tree_node_t *node = NULL;
   token_t *curr = NULL;
   token_t *next = NULL;
+
+  node = dom_tree_node_stack_peek(stack);
+  if (node == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "null pointer exception");
+    exit(EXIT_FAILURE);
+  }
 
   curr = token_queue_dequeue(que);
   if (curr == NULL)
@@ -38,9 +44,19 @@ void __parse_elm_body(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_n
   switch (curr->kind)
   {
     case KIND_WORD:
+      strncat(node->body, curr->data, curr->size);
+      break;
+
     case KIND_COMMA:
+      strncat(node->body, ",", 2ul);
+      break;
+
     case KIND_SPACE:
+      strncat(node->body, " ", 2ul);
+      break;
+
     case KIND_EXCL:
+      strncat(node->body, "!", 2ul);
       break;
 
     default:

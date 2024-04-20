@@ -148,7 +148,7 @@ void dom_tree_node_print_open(const dom_tree_node_t *self)
     }
   }
 
-  printf("%c", '>');
+  printf(">%s", self->body);
 }
 
 void dom_tree_node_print_close(const dom_tree_node_t *self)
