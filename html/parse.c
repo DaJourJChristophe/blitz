@@ -32,7 +32,7 @@ struct list
 
 typedef struct list list_t;
 
-static void __parse(dom_tree_node_stack_t *stack, token_queue_t *que);
+static void __parse(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, token_queue_t *que);
 
 /**
  * @brief Parse substrings from a string using the parameterized delimiter.
@@ -50,12 +50,14 @@ dom_tree_t *parse(char *data)
 {
   dom_tree_t *tree = NULL;
   dom_tree_node_stack_t *stack = NULL;
+  dom_tree_node_attr_stack_t *attr_stack = NULL;
   token_queue_t *que = NULL;
   list_t list;
   uint64_t i;
 
   tree = dom_tree_new();
   stack = dom_tree_node_stack_new((1ul << 5));
+  attr_stack = dom_tree_node_attr_stack_new((1ul << 5));
 
   memset(&list, 0, sizeof(list));
   parse_lines(&list, data, '\n');
@@ -64,10 +66,12 @@ dom_tree_t *parse(char *data)
   {
     que = lex(list_get(&list, i));
 
-    __parse(stack, que);
+    __parse(tree, stack, attr_stack, que);
 
     token_queue_destroy(que);
   }
+
+  dom_tree_node_attr_stack_destroy(attr_stack);
 
   if (1ul != stack->top)
   {
@@ -80,15 +84,9 @@ dom_tree_t *parse(char *data)
   return tree;
 }
 
-void __parse_elm_close(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_attribute_value(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_attribute_name(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_doctype(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_tag_close(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_tag_name(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_tag_open(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
+void __parse_tag_open(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
 
-static void __parse(dom_tree_node_stack_t *stack, token_queue_t *que)
+static void __parse(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, token_queue_t *que)
 {
   state_queue_t *states = NULL;
   parse_state_t state = NULL;
@@ -107,7 +105,7 @@ static void __parse(dom_tree_node_stack_t *stack, token_queue_t *que)
   while  (NULL != token_queue_peek(que) &&
           NULL != (state = state_queue_dequeue(states)))
   {
-    state(stack, states, que);
+    state(tree, stack, attr_stack, states, que);
   }
 
   state_queue_destroy(states);

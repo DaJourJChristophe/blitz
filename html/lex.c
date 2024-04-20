@@ -34,6 +34,10 @@ token_queue_t *lex(const char *line)
 
     switch (*line)
     {
+      case ',':
+        tok->kind = KIND_COMMA;
+        break;
+
       case ' ':
         tok->kind = KIND_SPACE;
         break;

@@ -10,19 +10,21 @@
  *
  * Licensed under the Academic Free License version 3.0.
  */
-#include "node.h"
-#include "state.h"
+#include "html/node.h"
+#include "html/state.h"
+#include "html/tree.h"
 #include "token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-void __parse_attribute_value(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_attribute_name(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_tag_close(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
+void __parse_attribute_value(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+void __parse_attribute_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+void __parse_tag_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
 
-void __parse_attribute_name(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que)
+void __parse_attribute_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
 {
+  dom_tree_node_attr_t *attr = NULL;
   dom_tree_node_t *node = NULL;
   token_t *curr = NULL;
   token_t *next = NULL;
@@ -39,10 +41,22 @@ void __parse_attribute_name(dom_tree_node_stack_t *stack, state_queue_t *states,
   switch (curr->kind)
   {
     case KIND_WORD:
+      attr = dom_tree_node_attr_new(curr->data, NULL);
+      if (false == dom_tree_node_append_attribute(node, attr))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not append attribute to element");
+        exit(EXIT_FAILURE);
+      }
+      if (false == dom_tree_node_attr_stack_push(attr_stack, attr))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not push attribute into attribute stack");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
     case KIND_SPACE:
     case KIND_EQUALS:
     case KIND_DBL_QUOT:
-      // token_print(curr);
       break;
 
     default:

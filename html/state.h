@@ -8,8 +8,10 @@
 #include <stdint.h>
 
 struct state_queue;
+struct dom_tree;
+struct dom_tree_node_attr_stack;
 
-typedef void (*parse_state_t)(dom_tree_node_stack_t *, struct state_queue *, token_queue_t *);
+typedef void (*parse_state_t)(struct dom_tree *, dom_tree_node_stack_t *, struct dom_tree_node_attr_stack *, struct state_queue *, token_queue_t *);
 
 struct state_queue
 {

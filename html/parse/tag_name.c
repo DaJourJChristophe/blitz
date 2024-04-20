@@ -10,22 +10,31 @@
  *
  * Licensed under the Academic Free License version 3.0.
  */
-#include "node.h"
-#include "state.h"
+#include "html/node.h"
+#include "html/state.h"
+#include "html/tree.h"
 #include "token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void __parse_tag_close(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
+void __parse_attribute_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+void __parse_tag_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+void __parse_doctype(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
 
-void __parse_elm_close(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que)
+void __parse_tag_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
 {
-  dom_tree_node_t *parent = NULL;
   dom_tree_node_t *node = NULL;
   token_t *curr = NULL;
   token_t *next = NULL;
+
+  node = dom_tree_node_stack_peek(stack);
+  if (node == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "null pointer exception");
+    exit(EXIT_FAILURE);
+  }
 
   curr = token_queue_dequeue(que);
   if (curr == NULL)
@@ -37,31 +46,11 @@ void __parse_elm_close(dom_tree_node_stack_t *stack, state_queue_t *states, toke
   switch (curr->kind)
   {
     case KIND_WORD:
-      if (1ul < stack->top)
-      {
-        node = dom_tree_node_stack_pop(stack);
-        if (0 != memcmp(node->name, curr->data, curr->size))
-        {
-          fprintf(stderr, "%s(): %s\n", __func__, "closing tag name does not match open tag name");
-          exit(EXIT_FAILURE);
-        }
-        parent = dom_tree_node_stack_peek(stack);
-        if (parent != NULL)
-        {
-          if (false == dom_tree_node_append(parent, node))
-          {
-            fprintf(stderr, "%s(): %s\n", __func__, "could not append child node to parent node");
-            exit(EXIT_FAILURE);
-          }
-        }
-      }
-      break;
-
-    case KIND_FWD_SLASH:
+      memcpy(node->name, curr->data, curr->size);
       break;
 
     default:
-      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", curr->kind);
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: current token", curr->kind);
       exit(EXIT_FAILURE);
   }
 
@@ -74,8 +63,8 @@ void __parse_elm_close(dom_tree_node_stack_t *stack, state_queue_t *states, toke
 
   switch (next->kind)
   {
-    case KIND_WORD:
-      if (false == state_queue_enqueue(states, &__parse_elm_close))
+    case KIND_SPACE:
+      if (false == state_queue_enqueue(states, &__parse_attribute_name))
       {
         fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
         exit(EXIT_FAILURE);
@@ -90,8 +79,16 @@ void __parse_elm_close(dom_tree_node_stack_t *stack, state_queue_t *states, toke
       }
       break;
 
+    case KIND_EXCL:
+      if (false == state_queue_enqueue(states, &__parse_doctype))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
     default:
-      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: next token", next->kind);
       exit(EXIT_FAILURE);
   }
 }

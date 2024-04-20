@@ -10,18 +10,19 @@
  *
  * Licensed under the Academic Free License version 3.0.
  */
-#include "node.h"
-#include "state.h"
+#include "html/node.h"
+#include "html/state.h"
+#include "html/tree.h"
 #include "token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-void __parse_tag_name(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_elm_close(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
-void __parse_doctype(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que);
+void __parse_tag_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+void __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+void __parse_doctype(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
 
-void __parse_tag_open(dom_tree_node_stack_t *stack, state_queue_t *states, token_queue_t *que)
+void __parse_tag_open(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
 {
   dom_tree_node_t *node = NULL;
   token_t *curr = NULL;

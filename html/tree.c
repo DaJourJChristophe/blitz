@@ -39,5 +39,6 @@ void dom_tree_destroy(dom_tree_t *self)
 
 void dom_tree_print(const dom_tree_t *self)
 {
+  printf("<!%s>", self->doctype);
   __dom_tree_node_print(self->root);
 }
