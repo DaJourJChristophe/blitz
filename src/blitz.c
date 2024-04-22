@@ -83,15 +83,20 @@ content_tree_t *dom_tree_expand(dom_tree_t *self)
   return tree;
 }
 
-int main(void)
+int main(int argc, const char *argv[])
 {
-  content_tree_t *content_tree = NULL;
+  if (argc != 2)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "not enough arguments pass a filepath");
+    return EXIT_FAILURE;
+  }
+  // content_tree_t *content_tree = NULL;
   dom_tree_t *dom_tree = NULL;
-  dom_tree = html_parse_file("index.html");
-  content_tree = dom_tree_expand(dom_tree);
+  dom_tree = html_parse_file(argv[1]);
+  // content_tree = dom_tree_expand(dom_tree);
   dom_tree_print(dom_tree);
-  content_tree_print(content_tree);
+  // content_tree_print(content_tree);
   dom_tree_destroy(dom_tree);
-  content_tree_destroy(content_tree);
+  // content_tree_destroy(content_tree);
   return EXIT_SUCCESS;
 }
