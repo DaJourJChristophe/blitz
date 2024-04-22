@@ -109,6 +109,38 @@ token_queue_t *lex(uint8_t **line, const ssize_t size, int64_t *j)
         tok->kind = KIND_DASH;
         break;
 
+      case '_':
+        tok->kind = KIND_UNDERSCORE;
+        break;
+
+      case '+':
+        tok->kind = KIND_PLUS;
+        break;
+
+      case '^':
+        tok->kind = KIND_CARET;
+        break;
+
+      case '?':
+        tok->kind = KIND_QMARK;
+        break;
+
+      case '&':
+        tok->kind = KIND_AMP;
+        break;
+
+      case '|':
+        tok->kind = KIND_VBAR;
+        break;
+
+      case '{':
+        tok->kind = KIND_LT_CURLY_BRACKET;
+        break;
+
+      case '}':
+        tok->kind = KIND_RT_CURLY_BRACKET;
+        break;
+
       default:
         if (isalpha(**line))
         {
@@ -132,6 +164,32 @@ token_queue_t *lex(uint8_t **line, const ssize_t size, int64_t *j)
           }
           tok->size = 1u+i;
           tok->kind = KIND_WORD;
+
+          memcpy(tok->data, buf, i);
+          break;
+        }
+        else if (isdigit(**line))
+        {
+          memset(buf, 0, MAX_WORD_BUF * sizeof(*buf));
+          for (i = 0u; *j < size && i < (MAX_WORD_BUF - 1) && **line && isdigit(**line); (*line)++, i++, *j += 1)
+          {
+            buf[i] = **line;
+          }
+          if (i >= (MAX_WORD_BUF - 1) && **line && isdigit(**line))
+          {
+            fprintf(stderr, "%s(): %s\n", __func__, "could not write to word buffer, buffer full");
+            exit(EXIT_FAILURE);
+          }
+          (*line)--; *j -= 1;
+
+          tok->data = calloc(1u+i, sizeof(*buf));
+          if (tok->data == NULL)
+          {
+            fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+            exit(EXIT_FAILURE);
+          }
+          tok->size = 1u+i;
+          tok->kind = KIND_NUMBER;
 
           memcpy(tok->data, buf, i);
           break;

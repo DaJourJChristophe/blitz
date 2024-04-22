@@ -5,10 +5,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define DOM_TREE_NODE_ATTR_VALLEN_DEFAULT 32ul
+
 struct dom_tree_node_attr
 {
   char name[32];
-  char value[32];
+  char *value;
+  size_t vallen;
 };
 
 typedef struct dom_tree_node_attr dom_tree_node_attr_t;
@@ -16,6 +19,8 @@ typedef struct dom_tree_node_attr dom_tree_node_attr_t;
 dom_tree_node_attr_t *dom_tree_node_attr_new(const char *name, const char *value);
 
 void dom_tree_node_attr_destroy(dom_tree_node_attr_t *self);
+
+bool dom_tree_node_attr_append_value(dom_tree_node_attr_t *self, const void *data, const size_t size);
 
 #define DOM_TREE_NODE_ATTR_STACK_CAPACITY (1ul << 5)
 

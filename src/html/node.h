@@ -9,11 +9,13 @@
 
 #define DOM_TREE_NODE_DEFAULT_CAPACITY (1ul << 5)
 
+#define DOM_TREE_NODE_NAMELEN_DEFAULT  32ul
 #define DOM_TREE_NODE_BODYLEN_DEFAULT 512ul
 
 struct dom_tree_node
 {
-  char name[32];
+  char *name;
+  size_t namelen;
   char *body;
   size_t bodylen;
   size_t cap;
@@ -29,6 +31,8 @@ typedef struct dom_tree_node dom_tree_node_t;
 dom_tree_node_t *dom_tree_node_new(const char *name, const char *body, const size_t cap);
 
 void dom_tree_node_destroy(dom_tree_node_t *self);
+
+bool dom_tree_node_append_name(dom_tree_node_t *self, const void *data, const size_t size);
 
 bool dom_tree_node_append_body(dom_tree_node_t *self, const void *data, const size_t size);
 

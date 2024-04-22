@@ -45,9 +45,42 @@ void dom_tree_node_attr_destroy(dom_tree_node_attr_t *self)
 {
   if (self != NULL)
   {
+    if (self->value != NULL)
+    {
+      free(self->value);
+      self->value = NULL;
+    }
+
     free(self);
     self = NULL;
   }
+}
+
+bool dom_tree_node_attr_append_value(dom_tree_node_attr_t *self, const void *data, const size_t size)
+{
+  if (self->value == NULL)
+  {
+    self->value = (char *)calloc(DOM_TREE_NODE_ATTR_VALLEN_DEFAULT, sizeof(*self->value));
+  }
+  else
+  {
+    const size_t prev_threshold = self->vallen / DOM_TREE_NODE_ATTR_VALLEN_DEFAULT;
+    const size_t curr_threshold = (size + self->vallen) / DOM_TREE_NODE_ATTR_VALLEN_DEFAULT;
+    if (curr_threshold > prev_threshold)
+    {
+      void *__old = self->value;
+      self->value = NULL;
+      self->value = (char *)realloc(__old, curr_threshold * DOM_TREE_NODE_ATTR_VALLEN_DEFAULT * sizeof(self->value));
+    }
+  }
+  if (self->value == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
+  }
+  memcpy((self->value + self->vallen), data, size);
+  self->vallen += size;
+  return true;
 }
 
 static void dom_tree_node_attr_stack_setup(dom_tree_node_attr_stack_t *self, const size_t size, const size_t cap)

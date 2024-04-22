@@ -71,6 +71,7 @@ int __parse_tag_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_n
       }
       break;
 
+    case KIND_OPEN_PARENTHESIS:
     case KIND_SPACE:
     case KIND_WORD:
     case KIND_DBL_QUOT:
@@ -114,6 +115,7 @@ static int __parse_next_tag_close(dom_tree_t *tree, dom_tree_node_stack_t *stack
       }
       break;
 
+    case KIND_OPEN_PARENTHESIS:
     case KIND_SPACE:
     case KIND_WORD:
     case KIND_DBL_QUOT:

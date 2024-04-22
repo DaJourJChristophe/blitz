@@ -52,6 +52,18 @@ void dom_tree_node_destroy(dom_tree_node_t *self)
 {
   if (self != NULL)
   {
+    if (self->name != NULL)
+    {
+      free(self->name);
+      self->name = NULL;
+    }
+
+    if (self->body != NULL)
+    {
+      free(self->body);
+      self->body = NULL;
+    }
+
     if (self->children != NULL)
     {
       free(self->children);
@@ -61,6 +73,33 @@ void dom_tree_node_destroy(dom_tree_node_t *self)
     free(self);
     self = NULL;
   }
+}
+
+bool dom_tree_node_append_name(dom_tree_node_t *self, const void *data, const size_t size)
+{
+  if (self->name == NULL)
+  {
+    self->name = (char *)calloc(DOM_TREE_NODE_NAMELEN_DEFAULT, sizeof(*self->name));
+  }
+  else
+  {
+    const size_t prev_threshold = self->namelen / DOM_TREE_NODE_NAMELEN_DEFAULT;
+    const size_t curr_threshold = (size + self->namelen) / DOM_TREE_NODE_NAMELEN_DEFAULT;
+    if (curr_threshold > prev_threshold)
+    {
+      void *__old = self->name;
+      self->name = NULL;
+      self->name = (char *)realloc(__old, curr_threshold * DOM_TREE_NODE_NAMELEN_DEFAULT * sizeof(self->name));
+    }
+  }
+  if (self->name == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
+  }
+  memcpy((self->name + self->namelen), data, size);
+  self->namelen += size;
+  return true;
 }
 
 bool dom_tree_node_append_body(dom_tree_node_t *self, const void *data, const size_t size)
@@ -92,10 +131,10 @@ bool dom_tree_node_append_body(dom_tree_node_t *self, const void *data, const si
 
 bool dom_tree_node_append(dom_tree_node_t *self, dom_tree_node_t *node)
 {
-  // if (self->count >= self->cap)
-  // {
-  //   return false;
-  // }
+  if (self->count >= self->cap)
+  {
+    return false;
+  }
 
   node->parent = self;
 

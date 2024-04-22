@@ -32,6 +32,13 @@ int __parse_attribute_value(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_
   (void)tree;
   (void)stack;
 
+  attr = dom_tree_node_attr_stack_peek(attr_stack);
+  if (attr == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid syntax");
+    exit(EXIT_FAILURE);
+  }
+
   curr = token_queue_dequeue(que);
   if (curr == NULL)
   {
@@ -43,22 +50,67 @@ int __parse_attribute_value(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_
 
   switch (curr->kind)
   {
-    case KIND_WORD:
-    case KIND_DASH:
-      attr = dom_tree_node_attr_stack_peek(attr_stack);
-      if (attr == NULL)
+    case KIND_COLON:
+      if (false == dom_tree_node_attr_append_value(attr, ":", 2ul))
       {
-        fprintf(stderr, "%s(): %s\n", __func__, "invalid syntax");
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
         exit(EXIT_FAILURE);
       }
-      memcpy(attr->value, curr->data, curr->size);
+      break;
+
+    case KIND_DASH:
+      if (false == dom_tree_node_attr_append_value(attr, "-", 2ul))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_PERIOD:
+      if (false == dom_tree_node_attr_append_value(attr, ".", 2ul))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_FWD_SLASH:
+      if (false == dom_tree_node_attr_append_value(attr, "/", 2ul))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_UNDERSCORE:
+      if (false == dom_tree_node_attr_append_value(attr, "/", 2ul))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_WORD:
+      if (false == dom_tree_node_attr_append_value(attr, curr->data, curr->size))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_NUMBER:
+      if (false == dom_tree_node_attr_append_value(attr, curr->data, curr->size))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
       break;
 
     case KIND_DBL_QUOT:
       break;
 
     default:
-      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", curr->kind);
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: current token", curr->kind);
       exit(EXIT_FAILURE);
   }
 
@@ -74,8 +126,13 @@ int __parse_attribute_value(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_
 
   switch (next->kind)
   {
+    case KIND_UNDERSCORE:
+    case KIND_PERIOD:
+    case KIND_FWD_SLASH:
+    case KIND_COLON:
     case KIND_WORD:
     case KIND_DASH:
+    case KIND_NUMBER:
       if (false == state_queue_enqueue_back(states, &__parse_attribute_value))
       {
         fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
@@ -93,7 +150,7 @@ int __parse_attribute_value(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_
       break;
 
     default:
-      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax :: next token", next->kind);
       exit(EXIT_FAILURE);
   }
 
@@ -118,8 +175,13 @@ static int __parse_next_attribute_value(dom_tree_t *tree, dom_tree_node_stack_t 
 
   switch (next->kind)
   {
+    case KIND_UNDERSCORE:
+    case KIND_PERIOD:
+    case KIND_FWD_SLASH:
+    case KIND_COLON:
     case KIND_WORD:
     case KIND_DASH:
+    case KIND_NUMBER:
       if (false == state_queue_enqueue_back(states, &__parse_attribute_value))
       {
         fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");

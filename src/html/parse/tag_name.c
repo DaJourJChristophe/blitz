@@ -53,7 +53,11 @@ int __parse_tag_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_no
   switch (curr->kind)
   {
     case KIND_WORD:
-      memcpy(node->name, curr->data, curr->size);
+      if (false == dom_tree_node_append_name(node, curr->data, curr->size - 1ul))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not write into node body");
+        exit(EXIT_FAILURE);
+      }
       break;
 
     default:
@@ -73,6 +77,14 @@ int __parse_tag_name(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_no
 
   switch (next->kind)
   {
+    case KIND_WORD:
+      if (false == state_queue_enqueue_back(states, &__parse_tag_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
     case KIND_SPACE:
       if (false == state_queue_enqueue_back(states, &__parse_attribute_name))
       {
@@ -114,6 +126,14 @@ static int __parse_next_tag_name(dom_tree_t *tree, dom_tree_node_stack_t *stack,
 
   switch (next->kind)
   {
+    case KIND_WORD:
+      if (false == state_queue_enqueue_back(states, &__parse_tag_name))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
     case KIND_SPACE:
       if (false == state_queue_enqueue_back(states, &__parse_attribute_name))
       {
