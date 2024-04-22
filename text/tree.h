@@ -27,6 +27,8 @@ bool content_tree_node_append(content_tree_node_t *self, content_tree_node_t *no
 
 void content_tree_node_print(const content_tree_node_t *self);
 
+#define CONTENT_TREE_NODE_QUEUE_CAPACITY (1ul << 5)
+
 struct content_tree_node_queue
 {
   size_t cap;
@@ -41,7 +43,7 @@ content_tree_node_queue_t *content_tree_node_queue_new(const size_t cap);
 
 void content_tree_node_queue_destroy(content_tree_node_queue_t *self);
 
-bool content_tree_node_queue_enqueue(content_tree_node_queue_t *self, content_tree_node_t *node);
+content_tree_node_queue_t *content_tree_node_queue_enqueue(content_tree_node_queue_t *self, content_tree_node_t *node);
 
 content_tree_node_t *content_tree_node_queue_dequeue(content_tree_node_queue_t *self);
 

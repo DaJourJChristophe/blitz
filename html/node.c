@@ -320,14 +320,24 @@ void dom_tree_node_queue_destroy(dom_tree_node_queue_t *self)
   }
 }
 
-bool dom_tree_node_queue_enqueue(dom_tree_node_queue_t *self, dom_tree_node_t *node)
+dom_tree_node_queue_t *dom_tree_node_queue_enqueue(dom_tree_node_queue_t *self, dom_tree_node_t *node)
 {
   if ((self->w - self->r) >= self->cap)
   {
-    return false;
+    self->cap += DOM_TREE_NODE_QUEUE_CAPACITY;
+    const size_t size = offsetof(dom_tree_node_queue_t, nodes[self->cap]);
+    void *__old = NULL;
+    __old = self;
+    self = NULL;
+    self = (dom_tree_node_queue_t *)realloc(__old, size);
+    if (self == NULL)
+    {
+      fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+      exit(EXIT_FAILURE);
+    }
   }
   self->nodes[self->w++ % self->cap] = node;
-  return true;
+  return self;
 }
 
 dom_tree_node_t *dom_tree_node_queue_dequeue(dom_tree_node_queue_t *self)

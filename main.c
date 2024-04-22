@@ -33,21 +33,13 @@ content_tree_t *dom_tree_expand(dom_tree_t *self)
   uint64_t i;
 
   tree = content_tree_new();
-  content_tree_que = content_tree_node_queue_new((1ul << 5));
-  que = dom_tree_node_queue_new((1ul << 5));
+  content_tree_que = content_tree_node_queue_new(CONTENT_TREE_NODE_QUEUE_CAPACITY);
+  que = dom_tree_node_queue_new(DOM_TREE_NODE_QUEUE_CAPACITY);
 
-  if (false == dom_tree_node_queue_enqueue(que, self->root))
-  {
-    fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
-    exit(EXIT_FAILURE);
-  }
+  que = dom_tree_node_queue_enqueue(que, self->root);
 
   tree->root = content_tree_node_new(self->root->body, strlen(self->root->body), CONTENT_TREE_NODE_CAPACITY);
-  if (false == content_tree_node_queue_enqueue(content_tree_que, tree->root))
-  {
-    fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
-    exit(EXIT_FAILURE);
-  }
+  content_tree_que = content_tree_node_queue_enqueue(content_tree_que, tree->root);
 
   while (NULL != (node = dom_tree_node_queue_dequeue(que)))
   {
@@ -60,25 +52,25 @@ content_tree_t *dom_tree_expand(dom_tree_t *self)
         continue;
       }
 
-      if (false == dom_tree_node_queue_enqueue(que, node->children[i]))
+      que = dom_tree_node_queue_enqueue(que, node->children[i]);
+
+      if (NULL == node->children[i]->body)
       {
-        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
-        exit(EXIT_FAILURE);
+        continue;
       }
 
       subtree = text_compile(node->children[i]->body);
 
-      if (false == content_tree_node_append(parent, subtree->root))
+      if (parent != NULL)
       {
-        fprintf(stderr, "%s(): %s\n", __func__, "could not append content tree node child to parent");
-        exit(EXIT_FAILURE);
+        if (false == content_tree_node_append(parent, subtree->root))
+        {
+          fprintf(stderr, "%s(): %s\n", __func__, "could not append content tree node child to parent");
+          exit(EXIT_FAILURE);
+        }
       }
 
-      if (false == content_tree_node_queue_enqueue(content_tree_que, subtree->root))
-      {
-        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue node into node queue");
-        exit(EXIT_FAILURE);
-      }
+      content_tree_que = content_tree_node_queue_enqueue(content_tree_que, subtree->root);
 
       subtree->root = NULL;
       content_tree_destroy(subtree);

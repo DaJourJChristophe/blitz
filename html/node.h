@@ -76,7 +76,7 @@ dom_tree_node_queue_t *dom_tree_node_queue_new(const size_t cap);
 
 void dom_tree_node_queue_destroy(dom_tree_node_queue_t *self);
 
-bool dom_tree_node_queue_enqueue(dom_tree_node_queue_t *self, dom_tree_node_t *node);
+dom_tree_node_queue_t *dom_tree_node_queue_enqueue(dom_tree_node_queue_t *self, dom_tree_node_t *node);
 
 dom_tree_node_t *dom_tree_node_queue_dequeue(dom_tree_node_queue_t *self);
 

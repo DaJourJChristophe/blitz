@@ -24,6 +24,12 @@
 
 token_queue_t *text_lex(const char *data)
 {
+  if (data == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "null pointer exception");
+    exit(EXIT_FAILURE);
+  }
+
   token_queue_t *que = NULL;
   token_t *tok = NULL;
   char buf[MAX_WORD_BUF];
@@ -34,6 +40,10 @@ token_queue_t *text_lex(const char *data)
   for (; *data; data++)
   {
     tok = token_queue_current(que);
+    if (tok == NULL)
+    {
+      return que;
+    }
 
     switch (*data)
     {
