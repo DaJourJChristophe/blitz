@@ -63,24 +63,57 @@ void dom_tree_node_destroy(dom_tree_node_t *self)
   }
 }
 
+bool dom_tree_node_append_body(dom_tree_node_t *self, const void *data, const size_t size)
+{
+  if (self->body == NULL)
+  {
+    self->body = (char *)calloc(DOM_TREE_NODE_BODYLEN_DEFAULT, sizeof(*self->body));
+  }
+  else
+  {
+    const size_t prev_threshold = self->bodylen / DOM_TREE_NODE_BODYLEN_DEFAULT;
+    const size_t curr_threshold = (size + self->bodylen) / DOM_TREE_NODE_BODYLEN_DEFAULT;
+    if (curr_threshold > prev_threshold)
+    {
+      void *__old = self->body;
+      self->body = NULL;
+      self->body = (char *)realloc(__old, curr_threshold * DOM_TREE_NODE_BODYLEN_DEFAULT * sizeof(self->body));
+    }
+  }
+  if (self->body == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
+  }
+  memcpy((self->body + self->bodylen), data, size);
+  self->bodylen += size;
+  return true;
+}
+
 bool dom_tree_node_append(dom_tree_node_t *self, dom_tree_node_t *node)
 {
-  if (self->count >= self->cap)
-  {
-    return false;
-  }
+  // if (self->count >= self->cap)
+  // {
+  //   return false;
+  // }
 
   node->parent = self;
 
   if (self->children == NULL)
   {
-    self->children = (dom_tree_node_t **)calloc(1ul, sizeof(*self->children));
+    self->children = (dom_tree_node_t **)calloc(self->cap, sizeof(*self->children));
   }
   else
   {
-    void *__old = self->children;
-    self->children = NULL;
-    self->children = (dom_tree_node_t **)realloc(__old, (1ul + self->count) * sizeof(*self->children));
+    const size_t prev_threshold = self->count / self->cap;
+    const size_t curr_threshold = (1ul + self->count) / self->cap;
+    if (curr_threshold > prev_threshold)
+    {
+      void *__old = self->children;
+      self->children = NULL;
+      self->children = (dom_tree_node_t **)realloc(__old, (1ul + self->count) * self->cap * sizeof(*self->children));
+      self->cap = curr_threshold * self->cap;
+    }
   }
 
   if (self->children == NULL)
@@ -140,6 +173,12 @@ void dom_tree_node_print_open(const dom_tree_node_t *self)
 
   for (i = 0ul; i < self->attrs_count; i++)
   {
+    if (self->attrs == NULL || self->attrs[i] == NULL)
+    {
+      fprintf(stderr, "%s(): %s\n", __func__, "null pointer exception");
+      exit(EXIT_FAILURE);
+    }
+
     printf("%s=\"%s\"", self->attrs[i]->name, self->attrs[i]->value);
 
     if ((1ul + i) < self->attrs_count)
@@ -184,7 +223,7 @@ void __dom_tree_node_print(const dom_tree_node_t *self)
 
   for (i = 0ul; i < self->count; i++)
   {
-    if (self->children[i] == NULL)
+    if (self->children == NULL || self->children[i] == NULL)
     {
       continue;
     }

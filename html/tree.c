@@ -39,6 +39,11 @@ void dom_tree_destroy(dom_tree_t *self)
 
 void dom_tree_print(const dom_tree_t *self)
 {
+  if (self == NULL)
+  {
+    fprintf(stderr, "%s(): %s", __func__, "null pointer exception");
+    exit(EXIT_FAILURE);
+  }
   printf("<!%s>", self->doctype);
   __dom_tree_node_print(self->root);
 }

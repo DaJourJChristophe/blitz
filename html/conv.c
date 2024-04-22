@@ -48,8 +48,6 @@ void dom_tree_BFS(const dom_tree_t *self)
     exit(EXIT_FAILURE);
   }
 
-  dom_tree_node_t *parent = NULL;
-
   while (NULL != (node = dom_tree_node_queue_dequeue(que)))
   {
     dst = graph_node_queue_dequeue(graph_que);

@@ -2,7 +2,7 @@
 
 set -e
 
-gcc -I. -ggdb3 -o bin/main \
+gcc -I. -std=c99 -pedantic -ggdb3 -Wall -Wextra -Werror -o bin/main \
   html/parse/attr_name.c \
   html/parse/attr_value.c \
   html/parse/doctype.c \
@@ -19,6 +19,10 @@ gcc -I. -ggdb3 -o bin/main \
   html/query.c \
   html/state.c \
   html/tree.c \
+  text/cmpl.c \
+  text/lex.c \
+  text/parse.c \
+  text/tree.c \
   graph.c \
   io.c \
   main.c \

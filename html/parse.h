@@ -3,6 +3,10 @@
 
 #include "tree.h"
 
-dom_tree_t *parse(char *data);
+#include <sys/types.h>
+
+dom_tree_t *html_parse_file(const char *filepath);
+
+dom_tree_t *html_parse(void *data, const ssize_t size);
 
 #endif/*PARSE_H*/

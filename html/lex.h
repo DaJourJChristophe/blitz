@@ -3,6 +3,8 @@
 
 #include "token.h"
 
-token_queue_t *lex(const char *line);
+#include <stdint.h>
+
+token_queue_t *lex(uint8_t **line, const ssize_t size, int64_t *j);
 
 #endif/*LEX_H*/

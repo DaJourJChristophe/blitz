@@ -52,7 +52,7 @@ void dom_tree_node_attr_destroy(dom_tree_node_attr_t *self)
 
 static void dom_tree_node_attr_stack_setup(dom_tree_node_attr_stack_t *self, const size_t size, const size_t cap)
 {
-  memset(self, 0, sizeof(*self));
+  memset(self, 0, size);
   self->cap = cap;
 }
 

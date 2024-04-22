@@ -1,5 +1,5 @@
-#ifndef TREE_H
-#define TREE_H
+#ifndef HTML_TREE_H
+#define HTML_TREE_H
 
 #include "node.h"
 
@@ -17,4 +17,4 @@ void dom_tree_destroy(dom_tree_t *self);
 
 void dom_tree_print(const dom_tree_t *self);
 
-#endif/*TREE_H*/
+#endif/*HTML_TREE_H*/

@@ -17,6 +17,8 @@ dom_tree_node_attr_t *dom_tree_node_attr_new(const char *name, const char *value
 
 void dom_tree_node_attr_destroy(dom_tree_node_attr_t *self);
 
+#define DOM_TREE_NODE_ATTR_STACK_CAPACITY (1ul << 5)
+
 struct dom_tree_node_attr_stack
 {
   size_t cap;

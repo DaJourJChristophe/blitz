@@ -19,14 +19,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-void __parse_tag_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+int __parse_tag_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
 
-void __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
+static int __parse_next_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que);
+
+int __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
 {
   dom_tree_node_t *parent = NULL;
   dom_tree_node_t *node = NULL;
   token_t *curr = NULL;
   token_t *next = NULL;
+
+  (void)tree;
+  (void)attr_stack;
 
   curr = token_queue_dequeue(que);
   if (curr == NULL)
@@ -35,12 +40,19 @@ void __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_
     exit(EXIT_FAILURE);
   }
 
+  next = token_queue_peek(que);
+
   switch (curr->kind)
   {
     case KIND_WORD:
       if (1ul < stack->top)
       {
         node = dom_tree_node_stack_pop(stack);
+        if (node == NULL)
+        {
+          fprintf(stderr, "%s(): %s\n", __func__, "invalid node state");
+          exit(EXIT_FAILURE);
+        }
         if (0 != memcmp(node->name, curr->data, curr->size))
         {
           fprintf(stderr, "%s(): %s\n", __func__, "closing tag name does not match open tag name");
@@ -66,17 +78,20 @@ void __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_
       exit(EXIT_FAILURE);
   }
 
-  next = token_queue_peek(que);
   if (next == NULL)
   {
-    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
-    exit(EXIT_FAILURE);
+    if (false == state_queue_enqueue_front(states, &__parse_next_elm_close))
+    {
+      fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+      exit(EXIT_FAILURE);
+    }
+    return 1;
   }
 
   switch (next->kind)
   {
     case KIND_WORD:
-      if (false == state_queue_enqueue(states, &__parse_elm_close))
+      if (false == state_queue_enqueue_back(states, &__parse_elm_close))
       {
         fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
         exit(EXIT_FAILURE);
@@ -84,7 +99,7 @@ void __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_
       break;
 
     case KIND_RT_CARET:
-      if (false == state_queue_enqueue(states, &__parse_tag_close))
+      if (false == state_queue_enqueue_back(states, &__parse_tag_close))
       {
         fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
         exit(EXIT_FAILURE);
@@ -95,4 +110,47 @@ void __parse_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_
       fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
       exit(EXIT_FAILURE);
   }
+
+  return 0;
+}
+
+static int __parse_next_elm_close(dom_tree_t *tree, dom_tree_node_stack_t *stack, dom_tree_node_attr_stack_t *attr_stack, state_queue_t *states, token_queue_t *que)
+{
+  token_t *next = NULL;
+
+  (void)tree;
+  (void)stack;
+  (void)attr_stack;
+
+  next = token_queue_peek(que);
+  if (next == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "invalid next token state");
+    exit(EXIT_FAILURE);
+  }
+
+  switch (next->kind)
+  {
+    case KIND_WORD:
+      if (false == state_queue_enqueue_back(states, &__parse_elm_close))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    case KIND_RT_CARET:
+      if (false == state_queue_enqueue_back(states, &__parse_tag_close))
+      {
+        fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into state queue");
+        exit(EXIT_FAILURE);
+      }
+      break;
+
+    default:
+      fprintf(stderr, "%s(): %s (%d)\n", __func__, "invalid syntax", next->kind);
+      exit(EXIT_FAILURE);
+  }
+
+  return 0;
 }

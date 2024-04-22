@@ -14,92 +14,10 @@
 #include "io.h"
 #include "token.h"
 
-#include <ctype.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-token_queue_t *lex(const char *data)
-{
-  token_queue_t *que = NULL;
-  token_t *tok = NULL;
-  char buf[32];
-  uint32_t i;
-
-  que = token_queue_new((1ul << 12));
-
-  for (; *data; data++)
-  {
-    tok = token_queue_current(que);
-
-    switch (*data)
-    {
-      case '"':
-      case '(':
-      case ')':
-      case '[':
-      case ']':
-      case '\n':
-        break;
-
-      case ' ':
-        tok->kind = KIND_SPACE;
-        break;
-
-      case '.':
-        tok->kind = KIND_PERIOD;
-        break;
-
-      case '!':
-        tok->kind = KIND_EXCL;
-        break;
-
-      case ',':
-        tok->kind = KIND_COMMA;
-        break;
-
-      case ':':
-        tok->kind = KIND_COLON;
-        break;
-
-      case ';':
-        tok->kind = KIND_SEMI_COLON;
-        break;
-
-      default:
-        if (*data == '-' || (!ispunct(*data) && !isspace(*data) && !iscntrl(*data)))
-        {
-          for (i = 0u; *data && (*data == '-' || (!ispunct(*data) && !isspace(*data) && !iscntrl(*data))); data++)
-          {
-            buf[i++] = *data;
-          }
-          buf[i++] = '\0';
-          data--;
-
-          tok->data = calloc(i, sizeof(*buf));
-          tok->size = i;
-          tok->kind = KIND_WORD;
-
-          memcpy(tok->data, buf, i);
-          break;
-        }
-
-        fprintf(stderr, "%s(): %s (%c)\n", __func__, "illegal character", *data);
-        exit(EXIT_FAILURE);
-    }
-
-    if (false == token_queue_next(que))
-    {
-      fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue token into token queue");
-      exit(EXIT_FAILURE);
-    }
-  }
-
-  return que;
-}
-
-content_tree_node_t *parse2(token_queue_t *que)
+static content_tree_node_t *parse2(token_queue_t *que)
 {
   content_tree_node_t *parent = NULL;
   content_tree_node_t *node = NULL;
@@ -140,7 +58,7 @@ content_tree_node_t *parse2(token_queue_t *que)
   return parent;
 }
 
-content_tree_t *parse(token_queue_t *que)
+content_tree_t *text_parse(token_queue_t *que)
 {
   content_tree_t *tree = NULL;
   content_tree_node_t *node = NULL;
@@ -157,7 +75,7 @@ content_tree_t *parse(token_queue_t *que)
     {
       case KIND_SPACE:
       case KIND_WORD:
-        if (false == token_queue_enqueue(new_que, tok))
+        if (false == token_queue_enqueue_back(new_que, tok))
         {
           fprintf(stderr, "%s(): %s\n", __func__, "could not enqueue into token queue");
           exit(EXIT_FAILURE);
@@ -170,6 +88,7 @@ content_tree_t *parse(token_queue_t *que)
       case KIND_COLON:
       case KIND_SEMI_COLON:
         node = parse2(new_que);
+        token_queue_destroy(new_que);
         if (false == content_tree_node_append(tree->root, node))
         {
           fprintf(stderr, "%s(): %s\n", __func__, "could not append child node to parent node");
@@ -184,24 +103,5 @@ content_tree_t *parse(token_queue_t *que)
     }
   }
 
-  token_queue_destroy(que);
   return tree;
-}
-
-int main(void)
-{
-  char data[(1u << 16)];
-  content_tree_t *tree = NULL;
-  token_queue_t *que = NULL;
-  memset(data, 0, (1u << 16) * sizeof(*data));
-  if (readfile(data, "data.txt") < 0)
-  {
-    fprintf(stderr, "%s(): %s\n", __func__, "could not read from file");
-    exit(EXIT_FAILURE);
-  }
-  que = lex(data);
-  tree = parse(que);
-  content_tree_print(tree);
-  content_tree_destroy(tree);
-  return EXIT_SUCCESS;
 }

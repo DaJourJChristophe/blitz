@@ -7,10 +7,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define DOM_TREE_NODE_DEFAULT_CAPACITY (1ul << 5)
+
+#define DOM_TREE_NODE_BODYLEN_DEFAULT 512ul
+
 struct dom_tree_node
 {
   char name[32];
-  char body[512];
+  char *body;
+  size_t bodylen;
   size_t cap;
   uint64_t count;
   uint64_t attrs_count;
@@ -25,12 +30,16 @@ dom_tree_node_t *dom_tree_node_new(const char *name, const char *body, const siz
 
 void dom_tree_node_destroy(dom_tree_node_t *self);
 
+bool dom_tree_node_append_body(dom_tree_node_t *self, const void *data, const size_t size);
+
 bool dom_tree_node_append(dom_tree_node_t *self, dom_tree_node_t *node);
 
 bool dom_tree_node_append_attribute(dom_tree_node_t *self, dom_tree_node_attr_t *attr);
 
 void __dom_tree_node_print(const dom_tree_node_t *self);
 void dom_tree_node_print(const dom_tree_node_t *self);
+
+#define DOM_TREE_NODE_STACK_CAPACITY (1ul << 5)
 
 struct dom_tree_node_stack
 {
@@ -50,6 +59,8 @@ bool dom_tree_node_stack_push(dom_tree_node_stack_t *self, dom_tree_node_t *node
 dom_tree_node_t *dom_tree_node_stack_peek(dom_tree_node_stack_t *self);
 
 dom_tree_node_t *dom_tree_node_stack_pop(dom_tree_node_stack_t *self);
+
+#define DOM_TREE_NODE_QUEUE_CAPACITY (1ul << 5)
 
 struct dom_tree_node_queue
 {

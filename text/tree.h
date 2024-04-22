@@ -1,5 +1,5 @@
-#ifndef TREE_H
-#define TREE_H
+#ifndef TEXT_TREE_H
+#define TEXT_TREE_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,6 +27,24 @@ bool content_tree_node_append(content_tree_node_t *self, content_tree_node_t *no
 
 void content_tree_node_print(const content_tree_node_t *self);
 
+struct content_tree_node_queue
+{
+  size_t cap;
+  uint64_t r;
+  uint64_t w;
+  content_tree_node_t *nodes[];
+};
+
+typedef struct content_tree_node_queue content_tree_node_queue_t;
+
+content_tree_node_queue_t *content_tree_node_queue_new(const size_t cap);
+
+void content_tree_node_queue_destroy(content_tree_node_queue_t *self);
+
+bool content_tree_node_queue_enqueue(content_tree_node_queue_t *self, content_tree_node_t *node);
+
+content_tree_node_t *content_tree_node_queue_dequeue(content_tree_node_queue_t *self);
+
 struct content_tree
 {
   content_tree_node_t *root;
@@ -40,4 +58,4 @@ void content_tree_destroy(content_tree_t *self);
 
 void content_tree_print(const content_tree_t *self);
 
-#endif/*TREE_H*/
+#endif/*TEXT_TREE_H*/

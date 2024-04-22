@@ -22,6 +22,22 @@ void token_print(const token_t *self)
 {
   switch (self->kind)
   {
+    case KIND_OPEN_PARENTHESIS:
+      printf("%c", '(');
+      break;
+
+    case KIND_CLOSE_PARENTHESIS:
+      printf("%c", ')');
+      break;
+
+    case KIND_OPEN_SQUARE_BRACKET:
+      printf("%c", '[');
+      break;
+
+    case KIND_CLOSE_SQUARE_BRACKET:
+      printf("%c", ']');
+      break;
+
     case KIND_SPACE:
       printf("%c", ' ');
       break;
@@ -86,7 +102,7 @@ void token_print(const token_t *self)
 
 static void token_queue_setup(token_queue_t *self, const size_t size, const size_t cap)
 {
-  memset(self, 0, sizeof(*self));
+  memset(self, 0, size);
   self->cap = cap;
 }
 
@@ -113,13 +129,23 @@ void token_queue_destroy(token_queue_t *self)
   }
 }
 
-bool token_queue_enqueue(token_queue_t *self, token_t *tok)
+bool token_queue_enqueue_back(token_queue_t *self, token_t *tok)
 {
   if ((self->w - self->r) >= self->cap)
   {
     return false;
   }
   memcpy((self->toks + (self->w++ % self->cap)), tok, sizeof(*self->toks));
+  return true;
+}
+
+bool token_queue_enqueue_front(token_queue_t *self, token_t *tok)
+{
+  if ((self->w - self->r) >= self->cap)
+  {
+    return false;
+  }
+  memcpy((self->toks + (--self->r % self->cap)), tok, sizeof(*self->toks));
   return true;
 }
 
@@ -143,6 +169,10 @@ token_t *token_queue_dequeue(token_queue_t *self)
 
 token_t *token_queue_current(token_queue_t *self)
 {
+  if (((1ul + self->w) - self->r) >= self->cap)
+  {
+    return NULL;
+  }
   return (self->toks + (self->w % self->cap));
 }
 

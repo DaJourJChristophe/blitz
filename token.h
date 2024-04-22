@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define TOKEN_QUEUE_CAPACITY (1ul << 5)
+
 enum
 {
   KIND_SPACE,
@@ -21,6 +23,10 @@ enum
   KIND_COMMA,
   KIND_COLON,
   KIND_SEMI_COLON,
+  KIND_OPEN_PARENTHESIS,
+  KIND_CLOSE_PARENTHESIS,
+  KIND_OPEN_SQUARE_BRACKET,
+  KIND_CLOSE_SQUARE_BRACKET,
 };
 
 struct token
@@ -48,7 +54,9 @@ token_queue_t *token_queue_new(const size_t cap);
 
 void token_queue_destroy(token_queue_t *self);
 
-bool token_queue_enqueue(token_queue_t *self, token_t *tok);
+bool token_queue_enqueue_back(token_queue_t *self, token_t *tok);
+
+bool token_queue_enqueue_front(token_queue_t *self, token_t *tok);
 
 token_t *token_queue_peek(token_queue_t *self);
 

@@ -62,7 +62,7 @@ static graph_node_t *graph_node_new(const char *name)
   return self;
 }
 
-static void graph_node_destroy(graph_node_t *self)
+static void __attribute__ ((unused)) graph_node_destroy(graph_node_t *self)
 {
   if (self != NULL)
   {
@@ -135,6 +135,7 @@ graph_t *graph_new(const size_t cap)
     fprintf(stderr, "%s(): %s\n", __func__, "memory error");
     exit(EXIT_FAILURE);
   }
+  graph_setup(self, size, cap);
   return self;
 }
 

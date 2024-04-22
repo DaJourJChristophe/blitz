@@ -21,7 +21,7 @@
 
 static void state_queue_setup(state_queue_t *self, const size_t size, const size_t cap)
 {
-  memset(self, 0, sizeof(*self));
+  memset(self, 0, size);
   self->cap = cap;
 }
 
@@ -48,13 +48,23 @@ void state_queue_destroy(state_queue_t *self)
   }
 }
 
-bool state_queue_enqueue(state_queue_t *self, parse_state_t state)
+bool state_queue_enqueue_back(state_queue_t *self, parse_state_t state)
 {
   if ((self->w - self->r) >= self->cap)
   {
     return false;
   }
   self->states[self->w++ % self->cap] = state;
+  return true;
+}
+
+bool state_queue_enqueue_front(state_queue_t *self, parse_state_t state)
+{
+  if ((self->w - self->r) >= self->cap)
+  {
+    return false;
+  }
+  self->states[--self->r % self->cap] = state;
   return true;
 }
 
@@ -65,4 +75,9 @@ parse_state_t state_queue_dequeue(state_queue_t *self)
     return NULL;
   }
   return self->states[self->r++ % self->cap];
+}
+
+size_t state_queue_size(state_queue_t *self)
+{
+  return self->w - self->r;
 }

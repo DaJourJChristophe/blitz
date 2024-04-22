@@ -98,7 +98,8 @@ bool content_tree_node_append(content_tree_node_t *self, content_tree_node_t *no
 
 void content_tree_node_print(const content_tree_node_t *self)
 {
-  printf("%.*s\n", self->size, (char *)self->data);
+  // NOTE: Check for a ulong specifier ..
+  printf("%.*s\n", (int)self->size, (char *)self->data);
 }
 
 static void __content_tree_node_print(const content_tree_node_t *self)
@@ -121,6 +122,54 @@ static void __content_tree_node_print(const content_tree_node_t *self)
 
     __content_tree_node_print(self->children[i]);
   }
+}
+
+static void content_tree_node_queue_setup(content_tree_node_queue_t *self, const size_t size, const size_t cap)
+{
+  memset(self, 0, size);
+  self->cap = cap;
+}
+
+content_tree_node_queue_t *content_tree_node_queue_new(const size_t cap)
+{
+  const size_t size = offsetof(content_tree_node_queue_t, nodes[cap]);
+  content_tree_node_queue_t *self = NULL;
+  self = (content_tree_node_queue_t *)malloc(size);
+  if (self == NULL)
+  {
+    fprintf(stderr, "%s(): %s\n", __func__, "memory error");
+    exit(EXIT_FAILURE);
+  }
+  content_tree_node_queue_setup(self, size, cap);
+  return self;
+}
+
+void content_tree_node_queue_destroy(content_tree_node_queue_t *self)
+{
+  if (self == NULL)
+  {
+    free(self);
+    self = NULL;
+  }
+}
+
+bool content_tree_node_queue_enqueue(content_tree_node_queue_t *self, content_tree_node_t *node)
+{
+  if ((self->w - self->r) >= self->cap)
+  {
+    return false;
+  }
+  self->nodes[self->w++ % self->cap] = node;
+  return true;
+}
+
+content_tree_node_t *content_tree_node_queue_dequeue(content_tree_node_queue_t *self)
+{
+  if (self->r == self->w)
+  {
+    return NULL;
+  }
+  return self->nodes[self->r++ % self->cap];
 }
 
 content_tree_t *content_tree_new(void)
